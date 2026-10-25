@@ -839,3 +839,17 @@ input[type="file"] {
 .download-success-desktop {
     display: none;
 }
+/* Intro / "How it works" block on the Load Model step */
+.m2m-intro {
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+.m2m-intro strong { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; }
+.m2m-steps { margin: 0 0 0.5rem; padding-left: 1.1rem; }
+.m2m-steps li { margin: 0.15rem 0; }
+.m2m-note { margin: 0.4rem 0 0; font-size: 0.76rem; opacity: 0.78; font-style: italic; }

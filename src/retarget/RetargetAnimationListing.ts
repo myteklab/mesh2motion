@@ -93,7 +93,9 @@ export class RetargetAnimationListing extends EventTarget {
   }
 
   public load_and_apply_default_animation_to_skinned_mesh (): void {
-    this.animation_loader.set_animations_file_path('../../animations/')
+    // the rig config's paths are already relative to this page (../animations/...): adding
+    // ../../animations/ in front assumed the app sat at the root of a site, and ours sits under /apps/
+    this.animation_loader.set_animations_file_path('./')
     this.animation_clips_loaded = []
     this.animation_mixer = new AnimationMixer(new Object3D())
 

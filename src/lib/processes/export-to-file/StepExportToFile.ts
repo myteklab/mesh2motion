@@ -107,6 +107,21 @@ export class StepExportToFile extends EventTarget {
   }
 
   private save_file (blob: Blob, filename: string): void {
+    // Offer the export to an embedding host first. A host (e.g. an asset
+    // library) can call preventDefault() on this cancelable event to take
+    // ownership of the file and suppress the browser download. Host-agnostic:
+    // a plain DOM event with the blob and filename.
+    const export_event = new CustomEvent('mesh2motion:exported', {
+      detail: { blob, filename },
+      cancelable: true
+    })
+    const host_handled = window.dispatchEvent(export_event) === false
+
+    if (host_handled) {
+      return // host saved it (e.g. to an asset library); skip the download
+    }
+
+    // Standalone fallback: download the file in the browser.
     if (this.ui.dom_export_button_hidden_link != null) {
       this.ui.dom_export_button_hidden_link.href = URL.createObjectURL(blob)
       this.ui.dom_export_button_hidden_link.download = filename

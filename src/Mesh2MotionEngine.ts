@@ -307,6 +307,12 @@ export class Mesh2MotionEngine {
   }
 
   private update_current_process_step (process_step: ProcessStep): void {
+    // "Change Model" button is only relevant once a model is loaded.
+    if (this.ui?.dom_change_model_button != null) {
+      this.ui.dom_change_model_button.style.display =
+        process_step === ProcessStep.LoadModel ? 'none' : 'block'
+    }
+
     switch (process_step) {
       case ProcessStep.LoadModel:
         this.process_step = ProcessStep.LoadModel

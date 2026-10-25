@@ -1,7 +1,7 @@
 import {
   AnimationClip, QuaternionKeyframeTrack,
   VectorKeyframeTrack, Scene, Group, type SkinnedMesh,
-  type Skeleton
+  type Skeleton, AnimationMixer, Quaternion, Vector3, type Object3D, type Bone
 } from 'three'
 import { RetargetUtils, type TrackNameParts } from './RetargetUtils.ts'
 import { TargetBoneMappingType } from './steps/StepBoneMapping.ts'
@@ -123,6 +123,15 @@ export class AnimationRetargetService {
       return this.apply_human_swing_twist_retargeting(source_clip, this.target_mapping_type)
     }
 
+    // A skeleton of the model's own (not one Mesh2Motion made): its bones rest turned
+    // their own way and are their own lengths, so copying the source's rotations and
+    // positions as they are bends it out of shape. Carry over how far each bone turns
+    // from rest instead.
+    if (this.target_mapping_type !== TargetBoneMappingType.Mesh2Motion) {
+      const moved = this.apply_rest_delta_retargeting(source_clip)
+      if (moved !== null) return moved
+    }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     // Besides the above special case, the standard retargeting will just be bone mapping applied
     // Maybe in the future we can do other more advanced things.
@@ -178,6 +187,89 @@ export class AnimationRetargetService {
   // #endregion
 
   // #region PRIVATE METHODS
+
+  /**
+   * Retarget by rest-pose difference: play the source clip on a copy of the source
+   * skeleton and, frame by frame, give each mapped target bone the same turn in the
+   * world away from its own rest pose that its source bone makes from the source rest
+   * pose. Unmapped bones keep their rest pose relative to their parent. The root moves
+   * by the source root's travel, scaled by the two skeletons' root heights. Returns
+   * null when there is nothing to work with, and the caller renames tracks as before.
+   */
+  private apply_rest_delta_retargeting (source_clip: AnimationClip): AnimationClip | null {
+    const source_skeleton: Skeleton | null = RetargetUtils.create_skeleton_from_group_object(this.source_armature)
+    if (source_skeleton === null || this.target_skinned_meshes.length === 0) return null
+    const src: Skeleton = RetargetUtils.clone_skeleton(source_skeleton)
+    const tgt: Skeleton = RetargetUtils.clone_skeleton(this.target_skinned_meshes[0].skeleton)
+    const top = (o: Object3D): Object3D => { let n = o; while (n.parent !== null) n = n.parent; return n }
+    const src_top = top(src.bones[0]); const tgt_top = top(tgt.bones[0])
+    src_top.updateMatrixWorld(true); tgt_top.updateMatrixWorld(true)
+
+    const world_q = (b: Object3D): Quaternion => b.getWorldQuaternion(new Quaternion())
+    const world_p = (b: Object3D): Vector3 => b.getWorldPosition(new Vector3())
+    const src_by_name = new Map<string, Bone>(src.bones.map(b => [b.name, b]))
+    const src_rest = new Map<Bone, Quaternion>(src.bones.map(b => [b, world_q(b)]))
+    const tgt_rest = new Map<Bone, Quaternion>(tgt.bones.map(b => [b, world_q(b)]))
+    const is_bone = (o: Object3D | null): boolean => o !== null && o.type === 'Bone'
+
+    // target bones, parents before children
+    const order: Bone[] = []
+    const visit = (b: Bone): void => { order.push(b); b.children.filter(c => c.type === 'Bone').forEach(c => visit(c as Bone)) }
+    tgt.bones.filter(b => !is_bone(b.parent)).forEach(visit)
+    const tgt_root = order[0]
+    const root_source = src_by_name.get(this.bone_mappings.get(tgt_root.name) ?? '')
+    const src_root_rest = root_source !== undefined ? world_p(root_source) : null
+    const tgt_root_rest = world_p(tgt_root)
+    const height = (p: Vector3 | null, of: Object3D): number => (p === null ? 0 : p.y - world_p(top(of)).y)
+    const scale = src_root_rest !== null && Math.abs(height(src_root_rest, root_source as Bone)) > 1e-6
+      ? height(tgt_root_rest, tgt_root) / height(src_root_rest, root_source as Bone)
+      : 1
+
+    const mixer = new AnimationMixer(src_top)
+    const action = mixer.clipAction(source_clip)
+    action.play()
+    const frames = Math.max(2, Math.ceil(source_clip.duration * 30) + 1)
+    const times = new Float32Array(frames)
+    const quats = new Map<Bone, Float32Array>(order.map(b => [b, new Float32Array(frames * 4)]))
+    const root_pos = new Float32Array(frames * 3)
+    const world_now = new Map<Bone, Quaternion>()
+
+    for (let f = 0; f < frames; f++) {
+      const t = source_clip.duration * f / (frames - 1)
+      times[f] = t
+      mixer.setTime(t)
+      src_top.updateMatrixWorld(true)
+      world_now.clear()
+      for (const b of order) {
+        const rest = tgt_rest.get(b) as Quaternion
+        const parent_rest = is_bone(b.parent) ? tgt_rest.get(b.parent as Bone) as Quaternion : world_q(b.parent as Object3D)
+        const parent_now = is_bone(b.parent) ? world_now.get(b.parent as Bone) as Quaternion : parent_rest
+        const s = src_by_name.get(this.bone_mappings.get(b.name) ?? '')
+        let now: Quaternion
+        if (s !== undefined) {
+          const turn = world_q(s).multiply((src_rest.get(s) as Quaternion).clone().invert())
+          now = turn.multiply(rest)
+        } else {
+          now = parent_now.clone().multiply(parent_rest.clone().invert().multiply(rest))
+        }
+        world_now.set(b, now)
+        const local = parent_now.clone().invert().multiply(now)
+        local.toArray(quats.get(b) as Float32Array, f * 4)
+      }
+      // the root travels as the source root does, scaled to this skeleton
+      const at = tgt_root_rest.clone()
+      if (root_source !== undefined && src_root_rest !== null) at.add(world_p(root_source).sub(src_root_rest).multiplyScalar(scale))
+      const parent = tgt_root.parent as Object3D
+      parent.worldToLocal(at)
+      at.toArray(root_pos, f * 3)
+    }
+    action.stop(); mixer.uncacheRoot(src_top)
+
+    const tracks: Array<QuaternionKeyframeTrack | VectorKeyframeTrack> = order.map(b => new QuaternionKeyframeTrack(`${b.name}.quaternion`, times, quats.get(b) as Float32Array))
+    tracks.push(new VectorKeyframeTrack(`${tgt_root.name}.position`, times, root_pos))
+    console.log(`Rest-pose retargeting: ${source_clip.name}, ${order.length} bones, root scaled ${scale.toFixed(3)}`)
+    return new AnimationClip(source_clip.name, source_clip.duration, tracks)
+  }
 
   private apply_human_swing_twist_retargeting (source_clip: AnimationClip, target_mapping_type: TargetBoneMappingType): AnimationClip {
     // the retargeter needs Skeleton inputs for both source and target.

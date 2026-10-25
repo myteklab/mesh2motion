@@ -9,8 +9,12 @@ export default defineConfig({
   publicDir: '../static/',
   base: './',
   define: {
-    // expose all Cloudflare environment variables to client from window object
-    PROCESS_ENV: JSON.stringify(process.env || 'unknown')
+    // Only the two values environment.js reads. Passing all of process.env wrote
+    // the whole build shell's environment into a public bundle.
+    PROCESS_ENV: JSON.stringify({
+      WORKERS_CI_COMMIT_SHA: process.env.WORKERS_CI_COMMIT_SHA,
+      WORKERS_CI_BRANCH: process.env.WORKERS_CI_BRANCH
+    })
   },
   server:
     {

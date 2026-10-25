@@ -20,6 +20,9 @@ export class StepLoadModel extends EventTarget {
   private original_model_data: Scene | Group = new Scene()
   private final_mesh_data: Scene = new Scene() // mesh data used when creating the skinned mesh
 
+  // Provenance of the currently loaded model, for session save/restore.
+  public last_loaded_source: { path: string, file_extension: string, is_upload: boolean } | null = null
+
   // model data used for retargeting process. Only used during retargeting processes
   private final_retargetable_model_data: Scene = new Scene()
   private debug_model_loading: boolean = false
@@ -263,6 +266,16 @@ export class StepLoadModel extends EventTarget {
   }
 
   public load_model_file (model_file_path: string | ArrayBuffer | null, file_extension: string): void {
+    // Record what was loaded so a session can be restored later. Reference
+    // models are plain URL strings; uploads arrive as data: URLs / buffers.
+    const is_string_path = typeof model_file_path === 'string'
+    const is_upload = !is_string_path || (model_file_path as string).startsWith('data:')
+    this.last_loaded_source = {
+      path: is_string_path ? (model_file_path as string) : '',
+      file_extension,
+      is_upload
+    }
+
     if (file_extension === 'fbx') {
       this.load_fbx_file(model_file_path)
     } else if (file_extension === 'glb') {

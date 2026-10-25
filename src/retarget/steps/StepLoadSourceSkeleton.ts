@@ -45,7 +45,7 @@ export class StepLoadSourceSkeleton extends EventTarget {
     // Set the skeleton type to human and load it automatically
     this.skeleton_type = SkeletonType.Human
     const rig_file = RigConfig.rig_file_for(SkeletonType.Human) ?? ''
-    this.load_skeleton_from_path(`/${rig_file}`).catch((error) => {
+    this.load_skeleton_from_path(`../${rig_file}`).catch((error) => {
       console.error('Failed to load default human skeleton:', error)
     })
 
@@ -73,7 +73,7 @@ export class StepLoadSourceSkeleton extends EventTarget {
 
     // Load the selected skeleton using the rig file path from RigConfig
     const rig_file = RigConfig.rig_file_for(this.skeleton_type) ?? ''
-    this.load_skeleton_from_path(`/${rig_file}`).catch((error) => {
+    this.load_skeleton_from_path(`../${rig_file}`).catch((error) => {
       console.error('Failed to load skeleton:', error)
     })
 

@@ -4,7 +4,6 @@ import { ProcessStep } from './enums/ProcessStep'
 import { TransformSpace } from './enums/TransformSpace'
 import { Utility } from './Utilities'
 import { ModelCleanupUtility } from './processes/load-model/ModelCleanupUtility'
-import { DownloadSuccessDialog } from './components/download-success/DownloadSuccessDialog'
 import { type Bone } from 'three'
 
 export class EventListeners {
@@ -246,7 +245,9 @@ export class EventListeners {
         'exported-model',
         this.bootstrap.download_settings
       )
-      new DownloadSuccessDialog().show()
+      // No DownloadSuccessDialog here: it links to the project's support page and
+      // Discord, and sends its star rating to the upstream survey worker. The
+      // embedding page says where the file was saved.
     })
 
     // going back to edit skeleton step after skinning
@@ -273,6 +274,11 @@ export class EventListeners {
     })
 
     this.bootstrap.ui.dom_back_to_load_model_button?.addEventListener('click', () => {
+      this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.LoadModel)
+    })
+
+    // Change Model goes back to the Load Model step from any later step.
+    this.bootstrap.ui.dom_change_model_button?.addEventListener('click', () => {
       this.bootstrap.process_step = this.bootstrap.process_step_changed(ProcessStep.LoadModel)
     })
 

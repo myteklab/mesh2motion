@@ -8,6 +8,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   </head>
   <body style="margin: 0">
+    <!-- Jump back to model selection from any step to load a different model.
+         Hidden on the Load Model step; shown once a model is loaded. -->
+    <button id="change-model-button" class="secondary-button"
+      style="display:none; position:fixed; top:10px; left:10px; z-index:50;">
+      &#x21bb; Change Model
+    </button>
     <script type="module" src="./CustomModelUploadBootstrap.ts"></script>
     <link href="./styles.css" rel="stylesheet" crossorigin="anonymous" />
     <link
@@ -49,7 +55,17 @@
         </div>
 
         <div id="load-model-tools">
-          <!-- <p class="step-instructions">Supports GLB, GLTF, FBX</p> -->
+          <!-- Brief intro so the rig-first flow + library-based animations are clear up front. -->
+          <div class="m2m-intro">
+            <strong>How it works</strong>
+            <ol class="m2m-steps">
+              <li>Load a 3D model (upload your own or pick one)</li>
+              <li>Fit a skeleton to it</li>
+              <li>Position the joints</li>
+              <li>Pick from a library of ready-made animations &amp; download</li>
+            </ol>
+            <p class="m2m-note">This is a rigging tool: you apply existing animations (or import your own GLB clips). It isn&apos;t a keyframe animation editor.</p>
+          </div>
 
           <label
             for="model-upload"
@@ -349,7 +365,7 @@
                 <label style="display: inline-flex">Expand / Contract Arms</label>
 
 
-                 <img src="../images/icons/help.svg" alt="Help" width="20" height="20"
+                 <img src="images/icons/help.svg" alt="Help" width="20" height="20"
                   data-tippy-content="Fine-tune arm spread across all animations for heavier or skinnier characters." />
 
                 <button class="secondary-button" id="reset-arm-extension-button">

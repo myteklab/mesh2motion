@@ -3,7 +3,7 @@
 // and ideas from
 // https://discourse.threejs.org/t/extend-skeletonhelper-to-accommodate-fat-lines-perhaps-with-linesegments2/59436/2
 
-import { Color, Matrix4, Vector3, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute, TextureLoader, LineSegments, LineBasicMaterial, type Bone, type ColorRepresentation } from 'three'
+import { Color, Matrix4, Vector3, Points, PointsMaterial, BufferGeometry, Float32BufferAttribute, TextureLoader, LineSegments, LineBasicMaterial, Sphere, type Bone, type ColorRepresentation } from 'three'
 import { BoneCategory, BoneClassifier } from './solvers/BoneClassifier'
 
 const _vector = /*@__PURE__*/ new Vector3()
@@ -24,7 +24,7 @@ const bone_category_colors: Record<BoneCategory, number> = {
 
 class CustomSkeletonHelper extends LineSegments {
   private readonly joint_points: Points
-  private readonly jointTexture = new TextureLoader().load('/images/skeleton-joint-point.png')
+  private readonly jointTexture = new TextureLoader().load('images/skeleton-joint-point.png')
   private hide_right_side_joints: boolean = false
 
   constructor (object: any, options: CustomSkeletonHelperOptions = {}) {
@@ -98,7 +98,16 @@ class CustomSkeletonHelper extends LineSegments {
       pointsGeometry.setAttribute('color', new Float32BufferAttribute(point_colors, 3))
     }
 
+    // Hidden joints are stored as NaN positions (see updateMatrixWorld) so they
+    // don't render. But anything that auto-computes a bounding sphere over this
+    // geometry when it's null (the renderer's frustum culling, and raycasts,
+    // which ignore frustumCulled) then gets a NaN radius and logs a THREE
+    // error. Pre-seed a valid, generous bounding sphere so it's never null and
+    // never recomputed. setXYZ + needsUpdate does not clear it.
+    pointsGeometry.boundingSphere = new Sphere(new Vector3(0, 0, 0), 1000)
+
     this.joint_points = new Points(pointsGeometry, pointsMaterial)
+    this.joint_points.frustumCulled = false
     this.add(this.joint_points)
   }
 

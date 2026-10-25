@@ -60,6 +60,7 @@ export class UI {
   dom_back_to_edit_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_skeleton_button: HTMLButtonElement | null = null
   dom_back_to_load_model_button: HTMLButtonElement | null = null
+  dom_change_model_button: HTMLButtonElement | null = null
   dom_enable_skin_debugging: HTMLInputElement | null = null
 
   dom_mesh_preview_group: HTMLElement | null = null
@@ -190,6 +191,7 @@ export class UI {
     this.dom_back_to_edit_skeleton_button = document.querySelector('#action_back_to_edit_skeleton')
     this.dom_back_to_load_skeleton_button = document.querySelector('#action_back_to_load_skeleton')
     this.dom_back_to_load_model_button = document.querySelector('#action_back_to_load_model')
+    this.dom_change_model_button = document.querySelector('#change-model-button')
 
     this.dom_enable_skin_debugging = document.querySelector('#debug-skinning-checkbox')
 
